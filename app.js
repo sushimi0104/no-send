@@ -425,7 +425,8 @@ exportButton.addEventListener('click',async()=>{
     else status.textContent='動画を保存できませんでした';
     recording=false;exportButton.disabled=false;exportButton.firstElementChild.textContent='動画で書き出す';
   };
-  try {recorder.start();}
+  // Safari の MP4 録画で終盤の映像だけ欠けることがあるため、1 秒ごとにデータを確定する。
+  try {recorder.start(1000);}
   catch (_){stream.getTracks().forEach(track=>track.stop());if(exportAudio)exportAudio.context.close().catch(()=>{});recording=false;exportButton.disabled=false;exportButton.firstElementChild.textContent='動画で書き出す';status.textContent='動画を作成できませんでした';return;}
   const lead=.12;
   const start=performance.now()+lead*1000;
