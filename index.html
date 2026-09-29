@@ -12,6 +12,7 @@
     <header class="page-header">
       <h1>メッセージが送れない<span class="period">。</span></h1>
       <p class="intro">本音を消して、いつもの言葉を送る。</p>
+      <a class="customize-button" href="#settingsTitle">カスタマイズする <span aria-hidden="true">↓</span></a>
     </header>
 
     <section class="workspace" aria-label="メッセージ動画の作成">
@@ -36,8 +37,11 @@
         </div>
         <div class="field-row icon-row">
           <span class="field-label">相手のアイコン</span>
-          <label class="upload-control" for="iconInput"><span class="upload-thumb"><img id="iconThumb" alt="選択中のアイコン"></span><span>画像を選ぶ <small>↗</small></span></label>
-          <input id="iconInput" type="file" accept="image/*" hidden>
+          <div class="icon-control">
+            <label class="upload-control" for="iconInput"><span class="upload-thumb"><img id="iconThumb" alt="選択中のアイコン"></span><span>画像を選ぶ <small>↗</small></span></label>
+            <input id="iconInput" type="file" accept="image/*" hidden>
+            <button id="clearIcon" type="button" hidden>外す</button>
+          </div>
         </div>
         <div class="field-row background-row">
           <span class="field-label">背景</span>
@@ -52,13 +56,13 @@
           <label for="personName">相手の名前</label>
           <input id="personName" type="text" value="×××" maxlength="24" autocomplete="off">
         </div>
-        <div class="messages-heading"><span>02 / MESSAGES</span><p>あなたの言葉を入力してください</p></div>
+        <div class="messages-heading"><span>02 / MESSAGES</span><p>メッセージ編集</p></div>
         <div class="message-field"><label for="message1"><span>01</span> 相手から届くメッセージ <em>必須</em></label><textarea id="message1" rows="2">俺のことどう思ってる？</textarea></div>
         <div class="message-field"><label for="message2"><span>02</span> 送りたい本音 <em>必須</em></label><textarea id="message2" rows="2">好きだよ</textarea></div>
         <div class="message-field"><label for="message3"><span>03</span> 実際に送る言葉 <em>必須</em></label><textarea id="message3" rows="2">教えない</textarea></div>
         <div class="message-field"><label for="message4"><span>04</span> 相手からの返事 <em>任意</em></label><textarea id="message4" rows="2">じゃあ、</textarea><p class="field-hint">空欄の場合は、送信したところで終了します。</p></div>
-        <div class="message-field"><label for="message5"><span>05</span> 相手からの追い打ち <em>任意</em></label><textarea id="message5" rows="2">今度確かめる</textarea><p class="field-hint">メッセージ4を入力すると設定できます。</p></div>
-        <div class="message-actions"><button id="clearMessages" type="button">全てクリア</button><button id="resetMessages" type="button">初期値に戻す</button></div>
+        <div class="message-field"><label for="message5"><span>05</span> 相手からの追い打ち <em>任意</em></label><textarea id="message5" rows="2">直接会って確かめる</textarea><p class="field-hint">メッセージ4を入力すると設定できます。</p></div>
+        <div class="message-actions"><button id="confirmButton" class="confirm-button" type="button">決定 <span aria-hidden="true">↑</span></button><button id="clearMessages" type="button">全てクリア</button><button id="resetMessages" type="button">初期値に戻す</button></div>
         <aside class="notice" aria-labelledby="noticeTitle">
           <h3 id="noticeTitle">注意事項</h3>
           <p>選んだ画像はブラウザ内だけで処理され、サーバーには送信されません。</p>

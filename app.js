@@ -7,8 +7,9 @@ const startButton = document.getElementById('startButton');
 const playback = document.getElementById('playback');
 const exportButton = document.getElementById('exportButton');
 const leafSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#e8ebe7"/><path d="M26 67c0-24 19-39 47-43-2 31-18 49-42 49" fill="#758a79"/><path d="M24 77c12-19 25-30 43-43" fill="none" stroke="#e8ebe7" stroke-width="3" stroke-linecap="round"/></svg>`;
+const leafIconSrc = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(leafSvg);
 const icon = new Image();
-icon.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(leafSvg);
+icon.src = leafIconSrc;
 document.getElementById('iconThumb').src = icon.src;
 let iconUrl = null;
 let backgroundImage = null;
@@ -277,6 +278,17 @@ function play(restart=false) {
 }
 startButton.addEventListener('click',()=>{if(!messagesReady())return;hasStarted=true;startButton.hidden=true;play(true);});
 document.getElementById('replayButton').addEventListener('click',()=>play(true));
+document.getElementById('confirmButton').addEventListener('click',()=>{
+  if(recording)return;
+  if(!messagesReady()){
+    [fields.message1,fields.message2,fields.message3].find(field=>!field.value.trim())?.focus();
+    return;
+  }
+  document.querySelector('.preview-column').scrollIntoView({behavior:'auto',block:'start'});
+  hasStarted=true;
+  startButton.hidden=true;
+  play(true);
+});
 function updateFields() {
   if(recording)return;
   if(!fields.message4.value.trim())fields.message5.value='';
@@ -287,7 +299,7 @@ function updateFields() {
 }
 for(const field of Object.values(fields)) field.addEventListener('input',updateFields);
 document.getElementById('clearMessages').addEventListener('click',()=>{for(let i=1;i<=5;i++)fields[`message${i}`].value='';updateFields();});
-document.getElementById('resetMessages').addEventListener('click',()=>{['俺のことどう思ってる？','好きだよ','教えない','じゃあ、','今度確かめる'].forEach((value,i)=>fields[`message${i+1}`].value=value);updateFields();});
+document.getElementById('resetMessages').addEventListener('click',()=>{['俺のことどう思ってる？','好きだよ','教えない','じゃあ、','直接会って確かめる'].forEach((value,i)=>fields[`message${i+1}`].value=value);updateFields();});
 document.getElementById('iconInput').addEventListener('change',event=>{
   const file=event.target.files?.[0];if(!file)return;
   if(!file.type.startsWith('image/')){status.textContent='画像ファイルを選んでください';return;}
@@ -296,6 +308,16 @@ document.getElementById('iconInput').addEventListener('change',event=>{
   icon.onload=()=>{if(!recording)draw(currentTime,settings());};
   icon.onerror=()=>{status.textContent='画像を読み込めませんでした';};
   icon.src=iconUrl;document.getElementById('iconThumb').src=iconUrl;
+  document.getElementById('clearIcon').hidden=false;
+});
+document.getElementById('clearIcon').addEventListener('click',()=>{
+  icon.src=leafIconSrc;
+  document.getElementById('iconThumb').src=leafIconSrc;
+  document.getElementById('iconInput').value='';
+  document.getElementById('clearIcon').hidden=true;
+  if(iconUrl)URL.revokeObjectURL(iconUrl);
+  iconUrl=null;
+  if(!recording)stop(true);
 });
 const backgroundInput=document.getElementById('backgroundInput');
 const backgroundThumb=document.getElementById('backgroundThumb');
@@ -333,6 +355,7 @@ exportButton.addEventListener('click',async()=>{
   if(!window.MediaRecorder||!canvas.captureStream){status.textContent='このブラウザは動画の書き出しに対応していません';return;}
   stop(true);recording=true;exportButton.disabled=true;exportButton.firstElementChild.textContent='書き出し中…';
   const s=settings(),total=timeline(s).total,stream=canvas.captureStream(30),chunks=[];
+  const videoTrack=stream.getVideoTracks()[0];
   let exportAudio=createAudio(true),audioEnabled=Boolean(exportAudio);
   if(exportAudio){
     status.textContent='音声を準備中…';
@@ -370,9 +393,19 @@ exportButton.addEventListener('click',async()=>{
   const lead=.12;
   const start=performance.now()+lead*1000;
   if(exportAudio)scheduleExportAudio(s,exportAudio,exportAudio.context.currentTime+lead);
+  let finalStarted=null,finalFrames=0;
   function render(now){
     const t=clamp((now-start)/1000,0,total);currentTime=t;draw(t,s);updateLabel(s);status.textContent=`書き出し中… ${Math.round(t/total*100)}%`;
-    if(t<total)requestAnimationFrame(render);else setTimeout(()=>recorder.state!=='inactive'&&recorder.stop(),300);
+    if(t<total){requestAnimationFrame(render);return;}
+    if(finalStarted===null)finalStarted=now;
+    finalFrames++;
+    if(typeof videoTrack?.requestFrame==='function')try{videoTrack.requestFrame();}catch(_){}
+    if(now-finalStarted<1200||finalFrames<4){requestAnimationFrame(render);return;}
+    setTimeout(()=>{
+      draw(total,s);
+      if(typeof videoTrack?.requestFrame==='function')try{videoTrack.requestFrame();}catch(_){}
+      if(recorder.state!=='inactive')recorder.stop();
+    },300);
   }
   requestAnimationFrame(render);
 });
