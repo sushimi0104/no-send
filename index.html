@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f7f5">
+  <title>メッセージが送れない</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <h1>メッセージが送れない<span class="period">。</span></h1>
+      <p class="intro">本音を消して、いつもの言葉を送る。</p>
+    </header>
+
+    <section class="workspace" aria-label="メッセージ動画の作成">
+      <div class="preview-column">
+        <div class="preview-heading"><span>PREVIEW</span><span id="durationLabel">00:00 / 00:00</span></div>
+        <div class="phone-frame">
+          <canvas id="preview" width="780" height="1056" aria-label="メッセージ画面のプレビュー"></canvas>
+          <button id="startButton" class="start-button" type="button" aria-label="プレビューを再生"><span class="start-icon" aria-hidden="true">▶</span><span>再生</span></button>
+        </div>
+        <div id="playback" class="playback" hidden>
+          <button id="replayButton" class="text-button" type="button" aria-label="最初から再生">↺ <span>最初から</span></button>
+        </div>
+        <button id="exportButton" class="export-button" type="button"><span>動画で書き出す</span><span aria-hidden="true">↗</span></button>
+        <p id="status" class="status" role="status" aria-live="polite">スマホ画面を動画として保存できます</p>
+      </div>
+
+      <section class="settings" aria-labelledby="settingsTitle">
+        <div class="section-heading"><span>01 / SETTINGS</span><h2 id="settingsTitle">設定</h2></div>
+        <div class="field-row color-row">
+          <label for="themeColor">テーマカラー</label>
+          <div class="color-control"><input id="themeColor" type="color" value="#777b83"><span id="colorValue">#777B83</span></div>
+        </div>
+        <div class="field-row icon-row">
+          <span class="field-label">相手のアイコン</span>
+          <label class="upload-control" for="iconInput"><span class="upload-thumb"><img id="iconThumb" alt="選択中のアイコン"></span><span>画像を選ぶ <small>↗</small></span></label>
+          <input id="iconInput" type="file" accept="image/*" hidden>
+        </div>
+        <div class="field-row background-row">
+          <span class="field-label">背景</span>
+          <div class="background-control">
+            <span class="background-thumb" id="backgroundThumb" hidden><img id="backgroundPreview" alt="選択中の背景"></span>
+            <label class="upload-control" for="backgroundInput">画像を選ぶ <small>↗</small></label>
+            <input id="backgroundInput" type="file" accept="image/*" hidden>
+            <button id="clearBackground" type="button" hidden>外す</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <label for="personName">相手の名前</label>
+          <input id="personName" type="text" value="×××" maxlength="24" autocomplete="off">
+        </div>
+        <div class="messages-heading"><span>02 / MESSAGES</span><p>あなたの言葉を入力してください</p></div>
+        <div class="message-field"><label for="message1"><span>01</span> 相手から届くメッセージ <em>必須</em></label><textarea id="message1" rows="2">俺のことどう思ってる？</textarea></div>
+        <div class="message-field"><label for="message2"><span>02</span> 送りたい本音 <em>必須</em></label><textarea id="message2" rows="2">好きだよ</textarea></div>
+        <div class="message-field"><label for="message3"><span>03</span> 実際に送る言葉 <em>必須</em></label><textarea id="message3" rows="2">教えない</textarea></div>
+        <div class="message-field"><label for="message4"><span>04</span> 相手からの返事 <em>任意</em></label><textarea id="message4" rows="2">じゃあ、</textarea><p class="field-hint">空欄の場合は、送信したところで終了します。</p></div>
+        <div class="message-field"><label for="message5"><span>05</span> 相手からの追い打ち <em>任意</em></label><textarea id="message5" rows="2">今度確かめる</textarea><p class="field-hint">メッセージ4を入力すると設定できます。</p></div>
+        <div class="message-actions"><button id="clearMessages" type="button">全てクリア</button><button id="resetMessages" type="button">初期値に戻す</button></div>
+        <aside class="notice" aria-labelledby="noticeTitle">
+          <h3 id="noticeTitle">注意事項</h3>
+          <p>選んだ画像はブラウザ内だけで処理され、サーバーには送信されません。</p>
+          <p>画像や文章は、権利者の許可などを確認し、他人の権利を侵害しない範囲で利用・投稿してください。</p>
+          <p>作成・投稿した内容に関するトラブルは、利用者ご自身で対応してください。運営者は責任を負いません。</p>
+        </aside>
+      </section>
+    </section>
+    <footer>@sushimi_0104</footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
