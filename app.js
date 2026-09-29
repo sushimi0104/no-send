@@ -118,6 +118,10 @@ function drawIncomingCall(t,s,tl) {
 function draw(t,s) {
   const tl=timeline(s), theme=s.color;
   ctx.setTransform(2,0,0,2,0,0);
+  if(s.call && t>=tl.callAt+.45){
+    drawIncomingCall(t,s,tl);
+    return;
+  }
   ctx.fillStyle=mix(theme,'#ffffff',.95);ctx.fillRect(0,0,390,528);
   ctx.fillStyle=mix(theme,'#ffffff',.88);ctx.fillRect(0,0,390,64);
   line(0,63,390,63,mix(theme,'#ffffff',.7));
@@ -428,14 +432,14 @@ exportButton.addEventListener('click',async()=>{
   if(exportAudio)scheduleExportAudio(s,exportAudio,exportAudio.context.currentTime+lead);
   let finalStarted=null,finalFrames=0;
   function render(now){
-    const t=clamp((now-start)/1000,0,total);currentTime=t;draw(t,s);updateLabel(s);status.textContent=`書き出し中… ${Math.round(t/total*100)}%`;
-    if(typeof videoTrack?.requestFrame==='function')try{videoTrack.requestFrame();}catch(_){}
+    const elapsed=Math.max(0,(now-start)/1000),t=Math.min(elapsed,total);
+    currentTime=t;draw(s.call ? elapsed : t,s);updateLabel(s);status.textContent=`書き出し中… ${Math.round(t/total*100)}%`;
     if(t<total){requestAnimationFrame(render);return;}
     if(finalStarted===null)finalStarted=now;
     finalFrames++;
     if(now-finalStarted<1200||finalFrames<4){requestAnimationFrame(render);return;}
     setTimeout(()=>{
-      draw(total,s);
+      draw(s.call ? Math.max(total,(performance.now()-start)/1000) : total,s);
       if(typeof videoTrack?.requestFrame==='function')try{videoTrack.requestFrame();}catch(_){}
       if(recorder.state!=='inactive')recorder.stop();
     },300);
