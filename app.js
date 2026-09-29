@@ -100,6 +100,10 @@ function drawIncomingCall(t,s,tl) {
   gradient.addColorStop(1,mix(s.color,'#101215',.78));
   ctx.fillStyle=gradient;ctx.fillRect(0,0,390,528);
   text('着信中…',195,88,14,'#ffffff',400,'center');
+  const pulse=(Math.sin((t-tl.callAt)*Math.PI*2/1.35)+1)/2;
+  ctx.beginPath();ctx.arc(195,171,53+pulse*9,0,Math.PI*2);
+  ctx.strokeStyle=`rgba(255,255,255,${.12+pulse*.24})`;
+  ctx.lineWidth=2;ctx.stroke();
   avatar(147,123,96);
   ctx.font='600 28px sans-serif';
   const nameSize=Math.min(28,28*320/Math.max(320,ctx.measureText(s.name).width));
@@ -247,8 +251,10 @@ function playEffect(kind,audio,at=null) {
   } else if(kind==='key') {
     keyClick(audio,at);
   } else if(kind==='ring') {
-    tone(audio,740,660,.24,.045,0,'sine',.02,at);
-    tone(audio,880,780,.28,.04,.22,'sine',.02,at);
+    [[784,0,.11],[988,.13,.11],[1175,.26,.11],[988,.39,.11],[784,.54,.11],[880,.69,.11],[659,.84,.2]].forEach(([frequency,delay,duration])=>{
+      tone(audio,frequency,frequency,duration,.032,delay,'sine',.012,at);
+      tone(audio,frequency*2,frequency*2,duration,.006,delay,'sine',.012,at);
+    });
   }
 }
 function scheduleExportAudio(s,audio,startAt) {
@@ -260,7 +266,7 @@ function scheduleExportAudio(s,audio,startAt) {
   playEffect('send',audio,startAt+tl.g);
   if(s.m4.trim())playEffect('receive',audio,startAt+tl.h);
   if(s.m5.trim())playEffect('receive',audio,startAt+tl.followup);
-  if(s.call)for(let offset=0;offset<5.2;offset+=1.5)playEffect('ring',audio,startAt+tl.callAt+offset);
+  if(s.call)for(let offset=0;offset<5.2;offset+=1.35)playEffect('ring',audio,startAt+tl.callAt+offset);
 }
 function soundOnEvents(previous,current,s,audio) {
   if(!audio||current-previous>.5)return;
@@ -269,7 +275,7 @@ function soundOnEvents(previous,current,s,audio) {
   if(previous<tl.g&&current>=tl.g)playEffect('send',audio);
   if(s.m4.trim()&&previous<tl.h&&current>=tl.h)playEffect('receive',audio);
   if(s.m5.trim()&&previous<tl.followup&&current>=tl.followup)playEffect('receive',audio);
-  if(s.call)for(let offset=0;offset<5.2;offset+=1.5)if(previous<tl.callAt+offset&&current>=tl.callAt+offset)playEffect('ring',audio);
+  if(s.call)for(let offset=0;offset<5.2;offset+=1.35)if(previous<tl.callAt+offset&&current>=tl.callAt+offset)playEffect('ring',audio);
   for(const [start,value] of [[tl.a,s.m2],[tl.e,s.m3]]) {
     const countBefore=Math.max(0,Math.floor((previous-start)/.17)+1);
     const countNow=Math.min(chars(value).length,Math.max(0,Math.floor((current-start)/.17)+1));
@@ -282,22 +288,10 @@ function stop(reset=false) {
   if(hasStarted)playback.hidden=false;
   if(reset){currentTime=0;draw(0,settings());updateLabel();}
 }
-function vibrateOnReceipt(previous,current,s) {
-  if (document.hidden || typeof navigator.vibrate !== 'function') return;
-  const tl=timeline(s);
-  const arrivals=[.35];
-  if(s.m4.trim())arrivals.push(tl.h);
-  if(s.m5.trim())arrivals.push(tl.followup);
-  if(s.call)arrivals.push(tl.callAt);
-  if(arrivals.some(time=>previous<time && current>=time && current-time<.5)) {
-    try { navigator.vibrate(70); } catch (_) { /* 非対応端末では何もしない */ }
-  }
-}
 function tick(now) {
   if (!playing) return;
   const previous=currentTime;
   currentTime=clamp((now-startTime)/1000,0,timeline(snapshot).total);
-  vibrateOnReceipt(previous,currentTime,snapshot);
   soundOnEvents(previous,currentTime,snapshot,previewAudio);
   draw(currentTime,snapshot);updateLabel(snapshot);
   if(currentTime>=timeline(snapshot).total) { stop();return; }
@@ -435,10 +429,10 @@ exportButton.addEventListener('click',async()=>{
   let finalStarted=null,finalFrames=0;
   function render(now){
     const t=clamp((now-start)/1000,0,total);currentTime=t;draw(t,s);updateLabel(s);status.textContent=`書き出し中… ${Math.round(t/total*100)}%`;
+    if(typeof videoTrack?.requestFrame==='function')try{videoTrack.requestFrame();}catch(_){}
     if(t<total){requestAnimationFrame(render);return;}
     if(finalStarted===null)finalStarted=now;
     finalFrames++;
-    if(typeof videoTrack?.requestFrame==='function')try{videoTrack.requestFrame();}catch(_){}
     if(now-finalStarted<1200||finalFrames<4){requestAnimationFrame(render);return;}
     setTimeout(()=>{
       draw(total,s);
