@@ -1,6 +1,6 @@
 const canvas = document.getElementById('preview');
 const ctx = canvas.getContext('2d');
-const fields = Object.fromEntries(['personName','themeColor','message1','message2','message3','message4','message5'].map(id => [id, document.getElementById(id)]));
+const fields = Object.fromEntries(['personName','themeColor','message1','message2','message3','message4','message5','incomingCall'].map(id => [id, document.getElementById(id)]));
 const durationLabel = document.getElementById('durationLabel');
 const status = document.getElementById('status');
 const startButton = document.getElementById('startButton');
@@ -31,7 +31,7 @@ function settings() {
     backgroundImage,
     m1: fields.message1.value, m2: fields.message2.value,
     m3: fields.message3.value, m4: fields.message4.value,
-    m5: fields.message4.value.trim() ? fields.message5.value : '' };
+    m5: fields.message4.value.trim() ? fields.message5.value : '', call: fields.incomingCall.checked };
 }
 function messagesReady() {
   if ([fields.message1,fields.message2,fields.message3].some(field=>!field.value.trim())) {
@@ -47,7 +47,9 @@ function timeline(s) {
   const a = 4.8, b = a + typing2, c = b + 4, d = c + deleting,
     e = d + 1, f = e + typing3, g = f + .55,
     read = g + 2, h = g + (s.m4.trim() ? 4 : .5), followup = h + 2;
-  return {a,b,c,d,e,f,g,read,h,followup,total:s.m5.trim() ? followup+2.2 : h+(s.m4.trim() ? 2.2 : 1.3)};
+  const messageEnd=s.m5.trim() ? followup+2.2 : h+(s.m4.trim() ? 2.2 : 1.3);
+  const callAt=messageEnd+1.2;
+  return {a,b,c,d,e,f,g,read,h,followup,callAt,total:s.call ? callAt+5.5 : messageEnd};
 }
 function hexRgb(hex) { const n = parseInt(hex.slice(1),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
 function mix(a,b,p) { const c=hexRgb(a),d=hexRgb(b); return `rgb(${Math.round(c.r+(d.r-c.r)*p)},${Math.round(c.g+(d.g-c.g)*p)},${Math.round(c.b+(d.b-c.b)*p)})`; }
@@ -81,6 +83,32 @@ function avatar(x,y,size) {
   ctx.save();ctx.beginPath();ctx.arc(x+size/2,y+size/2,size/2,0,Math.PI*2);ctx.clip();
   if (icon.complete && icon.naturalWidth) ctx.drawImage(icon,x,y,size,size);
   else {ctx.fillStyle='#e8ebe7';ctx.fillRect(x,y,size,size);}
+  ctx.restore();
+}
+function callButton(x,y,fill,decline) {
+  rounded(x-31,y-31,62,62,31,fill);
+  ctx.save();ctx.translate(x,y);if(decline)ctx.rotate(Math.PI*5/6);
+  ctx.strokeStyle='#ffffff';ctx.lineWidth=7;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(-14,8);ctx.quadraticCurveTo(0,-9,14,8);ctx.stroke();
+  ctx.restore();
+}
+function drawIncomingCall(t,s,tl) {
+  const appear=smooth((t-tl.callAt)/.45);
+  ctx.save();ctx.globalAlpha=appear;
+  const gradient=ctx.createLinearGradient(0,0,390,528);
+  gradient.addColorStop(0,mix(s.color,'#20242a',.55));
+  gradient.addColorStop(1,mix(s.color,'#101215',.78));
+  ctx.fillStyle=gradient;ctx.fillRect(0,0,390,528);
+  text('着信中…',195,88,14,'#ffffff',400,'center');
+  avatar(147,123,96);
+  ctx.font='600 28px sans-serif';
+  const nameSize=Math.min(28,28*320/Math.max(320,ctx.measureText(s.name).width));
+  text(s.name,195,257,nameSize,'#ffffff',600,'center');
+  callButton(100,426,'#da5a59',true);
+  callButton(290,426,'#53a878',false);
+  text('拒否',100,481,13,'#ffffff',400,'center');
+  text('応答',290,481,13,'#ffffff',400,'center');
+  rounded(145,514,100,4,2,'#ffffff');
   ctx.restore();
 }
 function draw(t,s) {
@@ -163,6 +191,7 @@ function draw(t,s) {
   rounded(336,458,32,32,16,t>=tl.e && t<tl.g?theme:mix(theme,'#ffffff',.55));
   text('↑',352,474,21,'#ffffff',600,'center');
   rounded(145,514,100,4,2,'#272727');
+  if(s.call && t>=tl.callAt)drawIncomingCall(t,s,tl);
 }
 function updateLabel(s= settings()) { durationLabel.textContent=`${fmt(currentTime)} / ${fmt(timeline(s).total)}`; }
 function createAudio(record=false) {
@@ -217,6 +246,9 @@ function playEffect(kind,audio,at=null) {
     tone(audio,660,1150,.09,.025,.045,'sine',.006,at);
   } else if(kind==='key') {
     keyClick(audio,at);
+  } else if(kind==='ring') {
+    tone(audio,740,660,.24,.045,0,'sine',.02,at);
+    tone(audio,880,780,.28,.04,.22,'sine',.02,at);
   }
 }
 function scheduleExportAudio(s,audio,startAt) {
@@ -228,6 +260,7 @@ function scheduleExportAudio(s,audio,startAt) {
   playEffect('send',audio,startAt+tl.g);
   if(s.m4.trim())playEffect('receive',audio,startAt+tl.h);
   if(s.m5.trim())playEffect('receive',audio,startAt+tl.followup);
+  if(s.call)for(let offset=0;offset<5.2;offset+=1.5)playEffect('ring',audio,startAt+tl.callAt+offset);
 }
 function soundOnEvents(previous,current,s,audio) {
   if(!audio||current-previous>.5)return;
@@ -236,6 +269,7 @@ function soundOnEvents(previous,current,s,audio) {
   if(previous<tl.g&&current>=tl.g)playEffect('send',audio);
   if(s.m4.trim()&&previous<tl.h&&current>=tl.h)playEffect('receive',audio);
   if(s.m5.trim()&&previous<tl.followup&&current>=tl.followup)playEffect('receive',audio);
+  if(s.call)for(let offset=0;offset<5.2;offset+=1.5)if(previous<tl.callAt+offset&&current>=tl.callAt+offset)playEffect('ring',audio);
   for(const [start,value] of [[tl.a,s.m2],[tl.e,s.m3]]) {
     const countBefore=Math.max(0,Math.floor((previous-start)/.17)+1);
     const countNow=Math.min(chars(value).length,Math.max(0,Math.floor((current-start)/.17)+1));
@@ -254,6 +288,7 @@ function vibrateOnReceipt(previous,current,s) {
   const arrivals=[.35];
   if(s.m4.trim())arrivals.push(tl.h);
   if(s.m5.trim())arrivals.push(tl.followup);
+  if(s.call)arrivals.push(tl.callAt);
   if(arrivals.some(time=>previous<time && current>=time && current-time<.5)) {
     try { navigator.vibrate(70); } catch (_) { /* 非対応端末では何もしない */ }
   }
@@ -298,6 +333,10 @@ function updateFields() {
   status.textContent=[fields.message1,fields.message2,fields.message3].some(field=>!field.value.trim())?'メッセージを設定してください':'スマホ画面を動画として保存できます';
 }
 for(const field of Object.values(fields)) field.addEventListener('input',updateFields);
+fields.incomingCall.addEventListener('change',()=>{
+  document.querySelector('.call-state').textContent=fields.incomingCall.checked?'ON':'OFF';
+  updateFields();
+});
 document.getElementById('clearMessages').addEventListener('click',()=>{for(let i=1;i<=5;i++)fields[`message${i}`].value='';updateFields();});
 document.getElementById('resetMessages').addEventListener('click',()=>{['俺のことどう思ってる？','好きだよ','教えない','じゃあ、','直接会って確かめる'].forEach((value,i)=>fields[`message${i+1}`].value=value);updateFields();});
 document.getElementById('iconInput').addEventListener('change',event=>{

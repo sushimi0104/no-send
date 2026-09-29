@@ -62,7 +62,9 @@
         <div class="message-field"><label for="message3"><span>03</span> 実際に送る言葉 <em>必須</em></label><textarea id="message3" rows="2">教えない</textarea></div>
         <div class="message-field"><label for="message4"><span>04</span> 相手からの返事 <em>任意</em></label><textarea id="message4" rows="2">じゃあ、</textarea><p class="field-hint">空欄の場合は、送信したところで終了します。</p></div>
         <div class="message-field"><label for="message5"><span>05</span> 相手からの追い打ち <em>任意</em></label><textarea id="message5" rows="2">直接会って確かめる</textarea><p class="field-hint">メッセージ4を入力すると設定できます。</p></div>
-        <div class="message-actions"><button id="confirmButton" class="confirm-button" type="button">決定 <span aria-hidden="true">↑</span></button><button id="clearMessages" type="button">全てクリア</button><button id="resetMessages" type="button">初期値に戻す</button></div>
+        <div class="message-actions"><button id="clearMessages" type="button">全てクリア</button><button id="resetMessages" type="button">初期値に戻す</button></div>
+        <div class="call-setting"><span id="incomingCallLabel">着信</span><label class="call-toggle"><input id="incomingCall" type="checkbox" aria-labelledby="incomingCallLabel"><span class="call-switch" aria-hidden="true"></span><span class="call-state">OFF</span></label></div>
+        <button id="confirmButton" class="confirm-button" type="button">決定 <span aria-hidden="true">↑</span></button>
         <aside class="notice" aria-labelledby="noticeTitle">
           <h3 id="noticeTitle">注意事項</h3>
           <p>選んだ画像はブラウザ内だけで処理され、サーバーには送信されません。</p>
