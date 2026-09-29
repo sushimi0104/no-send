@@ -75,6 +75,10 @@
     </section>
     <footer>@sushimi_0104</footer>
   </main>
-  <script src="app.js"></script>
+  <script>
+    const appScript = document.createElement('script');
+    appScript.src = `app.js?reload=${Date.now()}`;
+    document.body.appendChild(appScript);
+  </script>
 </body>
 </html>
