@@ -464,25 +464,36 @@ exportButton.addEventListener('click',async()=>{
     else status.textContent='動画を保存できませんでした';
     recording=false;exportButton.disabled=false;exportButton.firstElementChild.textContent='動画で書き出す';
   };
+  // 開始イベントを待ってから演出・音声の時計を開始する。
+  const recorderStarted=new Promise((resolve,reject)=>{
+    recorder.addEventListener('start',resolve,{once:true});
+    recorder.addEventListener('error',reject,{once:true});
+  });
   // Safari の MP4 録画で終盤の映像だけ欠けることがあるため、1 秒ごとにデータを確定する。
-  try {recorder.start(1000);}
+  try {recorder.start(1000);await recorderStarted;}
   catch (_){stream.getTracks().forEach(track=>track.stop());if(exportAudio)exportAudio.context.close().catch(()=>{});recording=false;exportButton.disabled=false;exportButton.firstElementChild.textContent='動画で書き出す';status.textContent='動画を作成できませんでした';return;}
   const lead=.12;
   const start=performance.now()+lead*1000;
   if(exportAudio)scheduleExportAudio(s,exportAudio,exportAudio.context.currentTime+lead);
-  let finalStarted=null,finalFrames=0;
+  let finalStarted=null,flushRequested=false,stopTimer=null;
+  function finishRecording(){
+    if(stopTimer!==null)clearTimeout(stopTimer);
+    if(recorder.state!=='inactive')recorder.stop();
+  }
   function render(now){
     const elapsed=Math.max(0,(now-start)/1000),t=Math.min(elapsed,total);
     currentTime=t;draw(s.call ? elapsed : t,s);updateLabel(s);status.textContent=`書き出し中… ${Math.round(t/total*100)}%`;
     if(t<total){requestAnimationFrame(render);return;}
     if(finalStarted===null)finalStarted=now;
-    finalFrames++;
-    if(now-finalStarted<(s.call?1200:0)||finalFrames<4){requestAnimationFrame(render);return;}
-    setTimeout(()=>{
-      draw(s.call ? Math.max(total,(performance.now()-start)/1000) : total,s);
-      if(typeof videoTrack?.requestFrame==='function')try{videoTrack.requestFrame();}catch(_){}
-      if(recorder.state!=='inactive')recorder.stop();
-    },300);
+    // 最終画面も継続して描画し、エンコーダーの処理時間を確保する。
+    if(now-finalStarted>=1200&&!flushRequested){
+      flushRequested=true;
+      // 最後のデータを受け取ってから stop する。停止イベントでも残りを回収する。
+      recorder.addEventListener('dataavailable',finishRecording,{once:true});
+      stopTimer=setTimeout(finishRecording,2000);
+      try {recorder.requestData();}catch(_){finishRecording();}
+    }
+    if(recorder.state!=='inactive')requestAnimationFrame(render);
   }
   requestAnimationFrame(render);
 });
