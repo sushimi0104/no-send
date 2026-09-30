@@ -32,7 +32,7 @@
       <section class="settings" aria-labelledby="settingsTitle">
         <div class="section-heading"><span>01 / SETTINGS</span><h2 id="settingsTitle">設定</h2></div>
         <div class="field-row color-row">
-          <label for="themeColor">テーマカラー</label>
+          <label for="themeColor">アプリテーマカラー</label>
           <div class="color-control"><input id="themeColor" type="color" value="#777b83"><span id="colorValue">#777B83</span></div>
         </div>
         <div class="field-row icon-row">
@@ -44,7 +44,7 @@
           </div>
         </div>
         <div class="field-row background-row">
-          <span class="field-label">背景</span>
+          <span class="field-label">アプリ背景</span>
           <div class="background-control">
             <span class="background-thumb" id="backgroundThumb" hidden><img id="backgroundPreview" alt="選択中の背景"></span>
             <label class="upload-control" for="backgroundInput">画像を選ぶ <small>↗</small></label>
@@ -63,7 +63,7 @@
         <div class="message-field"><label for="message4"><span>04</span> 相手からの返事 <em>任意</em></label><textarea id="message4" rows="2">じゃあ、</textarea><p class="field-hint">空欄の場合は、送信したところで終了します。</p></div>
         <div class="message-field"><label for="message5"><span>05</span> 相手からの追い打ち <em>任意</em></label><textarea id="message5" rows="2">直接会って確かめる</textarea><p class="field-hint">メッセージ4を入力すると設定できます。</p></div>
         <div class="message-actions"><button id="clearMessages" type="button">全てクリア</button><button id="resetMessages" type="button">初期値に戻す</button></div>
-        <div class="call-setting"><span id="incomingCallLabel">着信</span><label class="call-toggle"><input id="incomingCall" type="checkbox" aria-labelledby="incomingCallLabel"><span class="call-switch" aria-hidden="true"></span><span class="call-state">OFF</span></label></div>
+        <div class="call-setting"><div class="call-description"><span id="incomingCallLabel">着信</span><p id="incomingCallHint">ONにすると最後に相手から電話がかかってきます</p></div><label class="call-toggle"><input id="incomingCall" type="checkbox" aria-labelledby="incomingCallLabel" aria-describedby="incomingCallHint"><span class="call-switch" aria-hidden="true"></span><span class="call-state">OFF</span></label></div>
         <button id="confirmButton" class="confirm-button" type="button">決定 <span aria-hidden="true">↑</span></button>
         <aside class="notice" aria-labelledby="noticeTitle">
           <h3 id="noticeTitle">注意事項</h3>

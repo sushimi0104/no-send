@@ -88,9 +88,19 @@ function avatar(x,y,size) {
 }
 function callButton(x,y,fill,decline) {
   rounded(x-31,y-31,62,62,31,fill);
-  ctx.save();ctx.translate(x,y);if(decline)ctx.rotate(Math.PI*5/6);
+  ctx.save();ctx.translate(x,y);
   ctx.strokeStyle='#ffffff';ctx.lineWidth=7;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(-14,8);ctx.quadraticCurveTo(0,-9,14,8);ctx.stroke();
+  ctx.beginPath();
+  if(decline){
+    ctx.lineWidth=4;
+    ctx.moveTo(-10,-10);ctx.lineTo(10,10);
+    ctx.moveTo(10,-10);ctx.lineTo(-10,10);
+  } else {
+    ctx.rotate(-Math.PI/4);
+    ctx.moveTo(-14,-5);ctx.lineTo(-14,2);
+    ctx.quadraticCurveTo(0,14,14,2);ctx.lineTo(14,-5);
+  }
+  ctx.stroke();
   ctx.restore();
 }
 function drawIncomingCall(t,s,tl) {
