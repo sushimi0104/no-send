@@ -56,7 +56,8 @@ function hexRgb(hex) { const n = parseInt(hex.slice(1),16); return {r:(n>>16)&25
 function mix(a,b,p) { const c=hexRgb(a),d=hexRgb(b); return `rgb(${Math.round(c.r+(d.r-c.r)*p)},${Math.round(c.g+(d.g-c.g)*p)},${Math.round(c.b+(d.b-c.b)*p)})`; }
 function rounded(x,y,w,h,r,fill) { ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill(); }
 function line(x1,y1,x2,y2,color,width=1) { ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke(); }
-function text(value,x,y,size=15,color='#292929',weight=400,align='left') { ctx.fillStyle=color;ctx.font=`${weight} ${size}px -apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif`;ctx.textAlign=align;ctx.textBaseline='middle';ctx.fillText(value,x,y); }
+function canvasFont(size=15,weight=400) { return `${weight} ${size}px -apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif`; }
+function text(value,x,y,size=15,color='#292929',weight=400,align='left') { ctx.fillStyle=color;ctx.font=canvasFont(size,weight);ctx.textAlign=align;ctx.textBaseline='middle';ctx.fillText(value,x,y); }
 function wrap(value,maxWidth,fontSize=16) {
   ctx.font=`400 ${fontSize}px -apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif`;
   const lines=[];
@@ -199,7 +200,7 @@ function draw(t,s) {
   else if (t>=tl.f && t<tl.g) typed=s.m3;
   typed=typed.replace(/\n/g,' ');
   ctx.save();ctx.beginPath();ctx.rect(35,452,279,44);ctx.clip();
-  ctx.font='400 15px sans-serif';
+  ctx.font=canvasFont(15);
   const typedWidth=ctx.measureText(typed).width;
   const inputX=36-Math.max(0,typedWidth-267);
   text(typed || 'メッセージを入力',inputX,474,15,typed?'#303030':'#aaaaaa');
