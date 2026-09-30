@@ -46,10 +46,11 @@ function timeline(s) {
   const typing3 = chars(s.m3).length * .17;
   const a = 4.8, b = a + typing2, c = b + 4, d = c + deleting,
     e = d + 1, f = e + typing3, g = f + .55,
-    read = g + 2, h = g + (s.m4.trim() ? 4 : .5), followup = h + 2;
+    read = g + 2, h = g + (s.m4.trim() ? 5 : .5), followup = h + 4;
   const messageEnd=s.m5.trim() ? followup+2.2 : h+(s.m4.trim() ? 2.2 : 1.3);
   const callAt=messageEnd+1.2;
-  return {a,b,c,d,e,f,g,read,h,followup,callAt,total:s.call ? callAt+5.5 : messageEnd};
+  const lastMessageAt=s.m5.trim() ? followup : s.m4.trim() ? h : g;
+  return {a,b,c,d,e,f,g,read,h,followup,callAt,total:s.call ? callAt+5.5 : lastMessageAt+4};
 }
 function hexRgb(hex) { const n = parseInt(hex.slice(1),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
 function mix(a,b,p) { const c=hexRgb(a),d=hexRgb(b); return `rgb(${Math.round(c.r+(d.r-c.r)*p)},${Math.round(c.g+(d.g-c.g)*p)},${Math.round(c.b+(d.b-c.b)*p)})`; }
@@ -228,7 +229,12 @@ function tone(audio,startFrequency,endFrequency,duration,volume,delay=0,type='si
 }
 function keyClick(audio,at=null) {
   if(!audio)return;
-  const {context,target}=audio,now=at??context.currentTime;
+  const {context,target}=audio;
+  if(at===null && context.state!=='running')return;
+  const now=at??context.currentTime;
+  // 処理の遅れで発音が密集しても、入力音を重ねて鳴らさない。
+  if(audio.lastKeyTime!==undefined && now-audio.lastKeyTime<.08)return;
+  audio.lastKeyTime=now;
   if(!audio.noiseBuffer){
     const buffer=context.createBuffer(1,Math.ceil(context.sampleRate*.03),context.sampleRate);
     const samples=buffer.getChannelData(0);
@@ -324,7 +330,6 @@ document.getElementById('confirmButton').addEventListener('click',()=>{
 });
 function updateFields() {
   if(recording)return;
-  if(!fields.message4.value.trim())fields.message5.value='';
   fields.message5.disabled=!fields.message4.value.trim();
   stop(true);
   document.getElementById('colorValue').textContent=fields.themeColor.value.toUpperCase();
@@ -438,7 +443,7 @@ exportButton.addEventListener('click',async()=>{
     if(t<total){requestAnimationFrame(render);return;}
     if(finalStarted===null)finalStarted=now;
     finalFrames++;
-    if(now-finalStarted<1200||finalFrames<4){requestAnimationFrame(render);return;}
+    if(now-finalStarted<(s.call?1200:0)||finalFrames<4){requestAnimationFrame(render);return;}
     setTimeout(()=>{
       draw(s.call ? Math.max(total,(performance.now()-start)/1000) : total,s);
       if(typeof videoTrack?.requestFrame==='function')try{videoTrack.requestFrame();}catch(_){}
