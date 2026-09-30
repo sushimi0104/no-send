@@ -22,6 +22,7 @@ let startTime = 0;
 let snapshot = null;
 let hasStarted = false;
 let previewAudio = null;
+let playbackGeneration = 0;
 
 const chars = value => Array.from(value);
 const fmt = seconds => `00:${String(Math.floor(seconds)).padStart(2,'0')}`;
@@ -246,21 +247,29 @@ function keyClick(audio,at=null) {
   // 処理の遅れで発音が密集しても、入力音を重ねて鳴らさない。
   if(audio.lastKeyTime!==undefined && now-audio.lastKeyTime<.08)return;
   audio.lastKeyTime=now;
-  if(!audio.noiseBuffer){
-    const buffer=context.createBuffer(1,Math.ceil(context.sampleRate*.03),context.sampleRate);
+  if(!audio.keyBuffer){
+    // ノイズと電子音を一つの短い波形にして、別々の発音のずれを防ぐ。
+    const rate=context.sampleRate;
+    const buffer=context.createBuffer(1,Math.ceil(rate*.03),rate);
     const samples=buffer.getChannelData(0);
-    for(let i=0;i<samples.length;i++)samples[i]=Math.random()*2-1;
-    audio.noiseBuffer=buffer;
+    const alpha=1/(1+2*Math.PI*2300/rate);
+    let previousNoise=0,highpass=0,phase=0;
+    for(let i=0;i<samples.length;i++){
+      const t=i/rate,noise=Math.random()*2-1;
+      highpass=alpha*(highpass+noise-previousNoise);previousNoise=noise;
+      const envelope=(duration,attack,volume)=>t>=duration?0:
+        t<attack?.0001*Math.pow(volume/.0001,t/attack):
+        volume*Math.pow(.0001/volume,(t-attack)/(duration-attack));
+      phase+=1150*Math.pow(680/1150,Math.min(t/.025,1))/rate;
+      samples[i]=highpass*envelope(.026,.001,.028)+
+        (phase%1<.5?1:-1)*envelope(.025,.006,.009);
+    }
+    audio.keyBuffer=buffer;
   }
-  const source=context.createBufferSource(),filter=context.createBiquadFilter(),gain=context.createGain();
-  source.buffer=audio.noiseBuffer;
-  filter.type='highpass';filter.frequency.value=2300;
-  gain.gain.setValueAtTime(.0001,now);
-  gain.gain.exponentialRampToValueAtTime(.028,now+.001);
-  gain.gain.exponentialRampToValueAtTime(.0001,now+.026);
-  source.connect(filter);filter.connect(gain);gain.connect(target);
-  source.start(now);source.stop(now+.03);
-  tone(audio,1150,680,.025,.009,0,'square',.006,now);
+  const source=context.createBufferSource();
+  source.buffer=audio.keyBuffer;source.connect(target);
+  source.onended=()=>source.disconnect();
+  source.start(now);
 }
 function playEffect(kind,audio,at=null) {
   if(kind==='receive') {
@@ -278,12 +287,21 @@ function playEffect(kind,audio,at=null) {
     });
   }
 }
+function scheduleTypingAudio(s,audio,startAt,fromTime=0) {
+  if(!audio)return;
+  const tl=timeline(s);
+  for(const [start,value] of [[tl.a,s.m2],[tl.e,s.m3]]) {
+    chars(value).forEach((_,i)=>{
+      const time=start+i*.17;
+      if(time>=fromTime)playEffect('key',audio,startAt+time);
+    });
+  }
+}
 function scheduleExportAudio(s,audio,startAt) {
   if(!audio)return;
   const tl=timeline(s);
   playEffect('receive',audio,startAt+.35);
-  chars(s.m2).forEach((_,i)=>playEffect('key',audio,startAt+tl.a+i*.17));
-  chars(s.m3).forEach((_,i)=>playEffect('key',audio,startAt+tl.e+i*.17));
+  scheduleTypingAudio(s,audio,startAt);
   playEffect('send',audio,startAt+tl.g);
   if(s.m4.trim())playEffect('receive',audio,startAt+tl.h);
   if(s.m5.trim())playEffect('receive',audio,startAt+tl.followup);
@@ -297,13 +315,10 @@ function soundOnEvents(previous,current,s,audio) {
   if(s.m4.trim()&&previous<tl.h&&current>=tl.h)playEffect('receive',audio);
   if(s.m5.trim()&&previous<tl.followup&&current>=tl.followup)playEffect('receive',audio);
   if(s.call)for(let offset=0;offset<5.2;offset+=1.35)if(previous<tl.callAt+offset&&current>=tl.callAt+offset)playEffect('ring',audio);
-  for(const [start,value] of [[tl.a,s.m2],[tl.e,s.m3]]) {
-    const countBefore=Math.max(0,Math.floor((previous-start)/.17)+1);
-    const countNow=Math.min(chars(value).length,Math.max(0,Math.floor((current-start)/.17)+1));
-    if(countNow>countBefore)playEffect('key',audio);
-  }
+
 }
 function stop(reset=false) {
+  playbackGeneration++;
   playing=false;cancelAnimationFrame(frameId);
   if(previewAudio){previewAudio.context.close().catch(()=>{});previewAudio=null;}
   if(hasStarted)playback.hidden=false;
@@ -318,11 +333,19 @@ function tick(now) {
   if(currentTime>=timeline(snapshot).total) { stop();return; }
   frameId=requestAnimationFrame(tick);
 }
-function play(restart=false) {
+async function play(restart=false) {
   if(recording||!messagesReady())return;
-  if(playing)stop();
+  if(playing||previewAudio)stop();
   snapshot=settings();if(restart||currentTime>=timeline(snapshot).total)currentTime=0;
-  previewAudio=createAudio();
+  const generation=++playbackGeneration;
+  const audio=previewAudio=createAudio();
+  if(audio){
+    await audio.context.resume().catch(()=>{});
+    if(generation!==playbackGeneration)return;
+    if(audio.context.state==='running'){
+      scheduleTypingAudio(snapshot,audio,audio.context.currentTime-currentTime,currentTime);
+    }
+  }
   startTime=performance.now()-currentTime*1000;playing=true;
   frameId=requestAnimationFrame(tick);
 }
