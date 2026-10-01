@@ -459,7 +459,7 @@ exportButton.addEventListener('click',async()=>{
   if(recording)return;
   if(!messagesReady())return;
   if(!window.MediaRecorder||!canvas.captureStream){status.textContent='このブラウザは動画の書き出しに対応していません';return;}
-  stop(true);recording=true;exportButton.disabled=true;exportButton.firstElementChild.textContent='書き出し中…';
+  stop(true);hasStarted=true;startButton.hidden=true;recording=true;exportButton.disabled=true;exportButton.firstElementChild.textContent='書き出し中…';
   const s=settings(),total=timeline(s).total,stream=canvas.captureStream(30),chunks=[];
   const videoTrack=stream.getVideoTracks()[0];
   let exportAudio=createAudio(true),audioEnabled=Boolean(exportAudio);
@@ -507,6 +507,7 @@ exportButton.addEventListener('click',async()=>{
     if(recorder.state!=='inactive')recorder.stop();
   }
   function render(now){
+    if(recorder.state==='inactive')return;
     const elapsed=Math.max(0,(now-start)/1000),t=Math.min(elapsed,total);
     currentTime=t;draw(s.call ? elapsed : t,s);updateLabel(s);status.textContent=`書き出し中… ${Math.round(t/total*100)}%`;
     if(t<total){requestAnimationFrame(render);return;}
