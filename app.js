@@ -425,6 +425,31 @@ function mimeChoice(withAudio){
     : ['video/mp4;codecs="avc1.42E01F"','video/mp4;codecs="avc1.424028"','video/mp4;codecs="avc1.4D4028"','video/webm;codecs=vp8','video/webm;codecs=vp9'];
   return types.find(type=>MediaRecorder.isTypeSupported(type));
 }
+function startRecorder(recorder,drawFrame) {
+  return new Promise((resolve,reject)=>{
+    let frame=0,settled=false;
+    const timer=setTimeout(()=>finish(new Error('Recording startup timed out')),6000);
+    function finish(error){
+      if(settled)return;
+      settled=true;clearTimeout(timer);cancelAnimationFrame(frame);
+      recorder.removeEventListener('start',onStart);
+      recorder.removeEventListener('error',onError);
+      if(error)reject(error);else resolve();
+    }
+    function onStart(){finish();}
+    function onError(){finish(new Error('Recording startup failed'));}
+    function pump(){
+      if(settled)return;
+      drawFrame();
+      frame=requestAnimationFrame(pump);
+    }
+    recorder.addEventListener('start',onStart);
+    recorder.addEventListener('error',onError);
+    // 開始イベントが最初のフレームを待つブラウザでも、開始待ち中に映像を供給する。
+    try {recorder.start(1000);if(!settled)frame=requestAnimationFrame(pump);}
+    catch(error){finish(error);}
+  });
+}
 exportButton.addEventListener('click',async()=>{
   if(recording)return;
   if(!messagesReady())return;
@@ -464,14 +489,10 @@ exportButton.addEventListener('click',async()=>{
     else status.textContent='動画を保存できませんでした';
     recording=false;exportButton.disabled=false;exportButton.firstElementChild.textContent='動画で書き出す';
   };
+  status.textContent='録画を準備中…';
   // 開始イベントを待ってから演出・音声の時計を開始する。
-  const recorderStarted=new Promise((resolve,reject)=>{
-    recorder.addEventListener('start',resolve,{once:true});
-    recorder.addEventListener('error',reject,{once:true});
-  });
-  // Safari の MP4 録画で終盤の映像だけ欠けることがあるため、1 秒ごとにデータを確定する。
-  try {recorder.start(1000);await recorderStarted;}
-  catch (_){stream.getTracks().forEach(track=>track.stop());if(exportAudio)exportAudio.context.close().catch(()=>{});recording=false;exportButton.disabled=false;exportButton.firstElementChild.textContent='動画で書き出す';status.textContent='動画を作成できませんでした';return;}
+  try {await startRecorder(recorder,()=>draw(0,s));}
+  catch (_){recorder.onstop=null;recorder.ondataavailable=null;recorder.onerror=null;if(recorder.state!=='inactive')try{recorder.stop();}catch(_){}stream.getTracks().forEach(track=>track.stop());if(exportAudio)exportAudio.context.close().catch(()=>{});recording=false;exportButton.disabled=false;exportButton.firstElementChild.textContent='動画で書き出す';status.textContent='録画を開始できませんでした。もう一度お試しください。';return;}
   const lead=.12;
   const start=performance.now()+lead*1000;
   if(exportAudio)scheduleExportAudio(s,exportAudio,exportAudio.context.currentTime+lead);
