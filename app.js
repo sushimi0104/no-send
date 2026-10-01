@@ -222,6 +222,11 @@ function createAudio(record=false) {
   try {
     context=new AudioContextClass();
     const destination=record?context.createMediaStreamDestination():null;
+    if(destination){
+      // 最初の効果音を待たずに、録画先へ無音の音声フレームを供給する。
+      const silence=context.createConstantSource();
+      silence.offset.value=0;silence.connect(destination);silence.start();
+    }
     context.resume().catch(()=>{});
     return {context,target:destination||context.destination,destination};
   } catch (_) {if(context)context.close().catch(()=>{});return null;}
