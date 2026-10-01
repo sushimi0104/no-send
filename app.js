@@ -24,6 +24,81 @@ let hasStarted = false;
 let previewAudio = null;
 let playbackGeneration = 0;
 
+const preferencesKey='message-unsent.preferences.v1';
+const saveHint=document.getElementById('saveHint');
+let imageDatabase;
+let iconRevision=0,backgroundRevision=0;
+function saveFailure(images=false) {
+  saveHint.textContent=images?'画像を保存できませんでした。今回の画面では使用できますが、次回は選び直してください。':'設定を保存できませんでした。このブラウザでは次回の復元ができません。';
+}
+function savePreferences() {
+  const values=Object.fromEntries(Object.entries(fields).map(([id,field])=>[id,field.type==='checkbox'?field.checked:field.value]));
+  try {localStorage.setItem(preferencesKey,JSON.stringify(values));}
+  catch(_){saveFailure();}
+}
+function restorePreferences() {
+  try {
+    const values=JSON.parse(localStorage.getItem(preferencesKey));
+    if(!values||typeof values!=='object')return;
+    for(const [id,field] of Object.entries(fields)) {
+      const value=values[id];
+      if(field.type==='checkbox'){if(typeof value==='boolean')field.checked=value;}
+      else if(typeof value==='string'&&(id!=='themeColor'||/^#[0-9a-f]{6}$/i.test(value)))field.value=value;
+    }
+  } catch(_){saveFailure();}
+}
+function openImageDatabase() {
+  if(!imageDatabase)imageDatabase=new Promise((resolve,reject)=>{
+    const request=indexedDB.open('message-unsent',1);
+    request.onupgradeneeded=()=>request.result.createObjectStore('images');
+    request.onsuccess=()=>resolve(request.result);
+    request.onerror=()=>reject(request.error);
+    request.onblocked=()=>reject(new Error('Image storage unavailable'));
+  });
+  return imageDatabase;
+}
+async function storedImage(key,file,write=false) {
+  const db=await openImageDatabase();
+  return new Promise((resolve,reject)=>{
+    const transaction=db.transaction('images',write?'readwrite':'readonly');
+    const store=transaction.objectStore('images');
+    const request=write?(file?store.put(file,key):store.delete(key)):store.get(key);
+    transaction.oncomplete=()=>resolve(request.result);
+    transaction.onabort=()=>reject(transaction.error);
+    transaction.onerror=()=>reject(transaction.error);
+  });
+}
+function saveImage(key,file) {
+  storedImage(key,file,true).catch(()=>saveFailure(true));
+}
+async function restoreImages() {
+  const revisions={icon:iconRevision,background:backgroundRevision};
+  await Promise.all(['icon','background'].map(async key=>{
+    try {
+      const file=await storedImage(key);
+      if(!(file instanceof Blob))return;
+      if(key==='icon'){
+        if(iconRevision!==revisions.icon)return;
+        iconUrl=URL.createObjectURL(file);
+        icon.src=iconUrl;document.getElementById('iconThumb').src=iconUrl;
+        document.getElementById('clearIcon').hidden=false;
+      } else {
+        if(backgroundRevision!==revisions.background)return;
+        const url=URL.createObjectURL(file),image=new Image();
+        image.onload=()=>{
+          if(backgroundRevision!==revisions.background){URL.revokeObjectURL(url);return;}
+          backgroundUrl=url;backgroundImage=image;
+          document.getElementById('backgroundPreview').src=url;
+          backgroundThumb.hidden=false;clearBackground.hidden=false;
+          if(!recording&&!playing)draw(currentTime,settings());
+        };
+        image.onerror=()=>{URL.revokeObjectURL(url);saveFailure(true);};
+        image.src=url;
+      }
+    } catch(_){saveFailure(true);}
+  }));
+}
+
 const chars = value => Array.from(value);
 const fmt = seconds => `00:${String(Math.floor(seconds)).padStart(2,'0')}`;
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -368,6 +443,7 @@ document.getElementById('confirmButton').addEventListener('click',()=>{
   play(true);
 });
 function updateFields() {
+  savePreferences();
   if(recording)return;
   fields.message5.disabled=!fields.message4.value.trim();
   stop(true);
@@ -384,18 +460,22 @@ document.getElementById('resetMessages').addEventListener('click',()=>{['俺の�
 document.getElementById('iconInput').addEventListener('change',event=>{
   const file=event.target.files?.[0];if(!file)return;
   if(!file.type.startsWith('image/')){status.textContent='画像ファイルを選んでください';return;}
+  iconRevision++;
   if(iconUrl)URL.revokeObjectURL(iconUrl);
   iconUrl=URL.createObjectURL(file);
-  icon.onload=()=>{if(!recording)draw(currentTime,settings());};
+  icon.onload=()=>{saveImage('icon',file);if(!recording)draw(currentTime,settings());};
   icon.onerror=()=>{status.textContent='画像を読み込めませんでした';};
   icon.src=iconUrl;document.getElementById('iconThumb').src=iconUrl;
   document.getElementById('clearIcon').hidden=false;
 });
 document.getElementById('clearIcon').addEventListener('click',()=>{
+  iconRevision++;saveImage('icon',null);
+  icon.onload=()=>{if(!recording)draw(currentTime,settings());};
   icon.src=leafIconSrc;
   document.getElementById('iconThumb').src=leafIconSrc;
   document.getElementById('iconInput').value='';
   document.getElementById('clearIcon').hidden=true;
+  iconRevision++;
   if(iconUrl)URL.revokeObjectURL(iconUrl);
   iconUrl=null;
   if(!recording)stop(true);
@@ -406,8 +486,11 @@ const clearBackground=document.getElementById('clearBackground');
 backgroundInput.addEventListener('change',event=>{
   const file=event.target.files?.[0];if(!file)return;
   if(!file.type.startsWith('image/')){status.textContent='画像ファイルを選んでください';return;}
+  const revision=++backgroundRevision;
   const nextUrl=URL.createObjectURL(file),nextImage=new Image();
   nextImage.onload=()=>{
+    if(revision!==backgroundRevision){URL.revokeObjectURL(nextUrl);return;}
+    saveImage('background',file);
     if(backgroundUrl)URL.revokeObjectURL(backgroundUrl);
     backgroundUrl=nextUrl;backgroundImage=nextImage;
     document.getElementById('backgroundPreview').src=nextUrl;
@@ -418,6 +501,7 @@ backgroundInput.addEventListener('change',event=>{
   nextImage.src=nextUrl;
 });
 clearBackground.addEventListener('click',()=>{
+  backgroundRevision++;saveImage('background',null);
   if(backgroundUrl)URL.revokeObjectURL(backgroundUrl);
   backgroundUrl=null;backgroundImage=null;backgroundInput.value='';
   document.getElementById('backgroundPreview').removeAttribute('src');
@@ -524,5 +608,11 @@ exportButton.addEventListener('click',async()=>{
   }
   requestAnimationFrame(render);
 });
-icon.onload=()=>draw(0,settings());
+restorePreferences();
+fields.message5.disabled=!fields.message4.value.trim();
+document.getElementById('colorValue').textContent=fields.themeColor.value.toUpperCase();
+document.querySelector('.call-state').textContent=fields.incomingCall.checked?'ON':'OFF';
+if([fields.message1,fields.message2,fields.message3].some(field=>!field.value.trim()))status.textContent='メッセージを設定してください';
+icon.onload=()=>{if(!recording&&!playing)draw(currentTime,settings());};
 draw(0,settings());updateLabel();
+restoreImages();
